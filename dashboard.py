@@ -12,10 +12,10 @@ from src.config import get_project_root
 
 st.set_page_config(layout="wide")
 
-
-path = ".\\Images\\Arevon_home.png"
-# sys.path.append(path)
 root=get_project_root()
+
+path = root+"\\Images\\Arevon_home.png"
+# sys.path.append(path)
 
 image = Image.open(fp=path)
 st.sidebar.image(image)
