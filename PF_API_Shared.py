@@ -9,7 +9,6 @@ import pandas as pd
 import numpy as np
 import os
 import requests
-import json
 import datetime as dt
 
 pd.set_option("display.max_rows", None)

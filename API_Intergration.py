@@ -1,14 +1,11 @@
 import pandas as pd
-import numpy as np
 import time as t
 import re
 import itertools, os, sys
 
 sys.path.append(os.getcwd())
 
-from datetime import datetime as dt
-from inverter_loss_calc import INV_Loss
-from PF_API_Shared import get_all_plants, get_plant, get_plant_attributes, get_plant_devices, Dispatch,TimeInterval, get_plants_metadata
+from PF_API_Shared import get_all_plants, get_plant_devices, Dispatch,TimeInterval, get_plants_metadata
 from config import SUBSCRIPTION_KEY, CUSTOMER_ID
 
 

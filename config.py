@@ -6,12 +6,7 @@ def mapper(a,b):
     list_compile = lambda a,b: a + '-' +b
     return list(map(list_compile, a,b))
 
-def inv_reconfiure(df):
-    temp_inverter = []
-    new_inverter = []
-    ident = [id for site, type, id, name in df.columns.values]
-    
-    return 
+
     
 
    

@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os, sys
-import plotly.figure_factory as ff
 import plotly.express as px
 
 sys.path.append(os.getcwd())

@@ -12,9 +12,7 @@ import os
 from pprint import pprint as pp
 
 import pandas as pd
-import time
 import re
-import plotly
 import cufflinks as cf
 import itertools
 import numpy as np
