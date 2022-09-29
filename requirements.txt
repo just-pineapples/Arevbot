@@ -6,3 +6,4 @@ pvlib
 streamlit
 plotly
 arrow
+openpyxl
