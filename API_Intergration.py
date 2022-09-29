@@ -23,7 +23,7 @@ def plants_meta(plant:str):
     return meta
 
 def ppa_rates(plant):    
-    ppa_rates = pd.read_excel(r"C:\Users\dpinales\Desktop\Energy_Opt\data\PPA_rates\Bala Export - 7.18.2022.xlsx")
+    ppa_rates = pd.read_excel("data\\PPA_rates\\Bala Export - 7.18.2022.xlsx")
     ppa_rates = ppa_rates.set_index('Project Name')
     ppa_rates = ppa_rates.loc[plant, ["Date", "$/MWh"]]
     ppa_rates['Date'] = pd.to_datetime(ppa_rates['Date'])
@@ -31,7 +31,7 @@ def ppa_rates(plant):
     return ppa_rates 
 
 def plants_coeffs(plant):
-    coeffs = pd.read_excel("C:\\Users\\dpinales\\Desktop\\Energy_Opt\\data\\Co-Effs\\Coronal Co-eff.xlsx")
+    coeffs = pd.read_excel("data\\Co-Effs\\Coronal Co-eff.xlsx")
     plant_coeffs = coeffs[coeffs["Plants"] == plant]
     return plant_coeffs
 
@@ -237,7 +237,7 @@ def dc_outages(plant:str, start, end):
     day_df = new_df.resample("1D").sum()
     
 
-    dc_meta = pd.read_excel("C:\\Users\\dpinales\\Desktop\\Energy_Opt\\data\\Project_Metadata_tables.xlsx", sheet_name="Combiner_table").filter(items= ['plant_name', 'string_count','DC Rating Power kW', 'Module IMP'], axis=1)
+    dc_meta = pd.read_excel("data\\Project_Metadata_tables.xlsx", sheet_name="Combiner_table").filter(items= ['plant_name', 'string_count','DC Rating Power kW', 'Module IMP'], axis=1)
     day_df = day_df.filter(regex="CMB")
 
     dc_issues = dc_meta[dc_meta["plant_name"]==plant]  
