@@ -13,15 +13,7 @@ import datetime as dt
 
 pd.set_option("display.max_rows", None)
 ''' Enter your path '''
-# path = 'C:\\Users\\brammohan\\Documents\\Performance'
-path = 'C:\\Users\dpinales\\Desktop\\Energy_Opt\\data\\Results'
 
-''' Plant Name '''
-# plant = "Boaz"
-# start_date = dt.datetime(2022,6,1)
-# end_date = dt.datetime(2022,6,30)
-
-os.chdir(path)
 
 # API credentials
 subscription_key = "fa6da66b31e94018abac3eff8316027a"

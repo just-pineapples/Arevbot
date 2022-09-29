@@ -8,10 +8,17 @@ sys.path.append(os.getcwd())
 from PIL import Image
 from datetime import datetime as dt
 from API_Intergration import expected_modeling_tags, inv_outages, plants_meta, all_plants, dc_outages, plants_coeffs, poa_tags
+from src.config import get_project_root
 
 st.set_page_config(layout="wide")
 
-image = Image.open(fp='C:\\Users\\dpinales\\Desktop\\Energy_Opt\\Images\\Arevon_home.png')
+
+path = "Images\\Arevon_home.png"
+root=get_project_root()
+
+os.chdir(root)
+
+image = Image.open(fp=path)
 st.sidebar.image(image)
 
 options = st.sidebar.selectbox("What values are we looking for today?", {"Plants Metadata/Actual Vs Expected", 'Inverter Outage', 'DC Outages', 'Monthly Reporting'})

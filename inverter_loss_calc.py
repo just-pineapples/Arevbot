@@ -20,17 +20,13 @@ import numpy as np
 from datetime import datetime as dt
 
 pd.set_option("display.max_rows", None)
-# pd.set_option("display.max_columns", None)
 
-# tic = time.perf_counter()
 cf.set_config_file(theme = 'pearl', sharing = 'public', offline = True)
 
 ''' Enter the path of your file '''
 files = glob.glob("data\monthly_data\*.xlsx", recursive=True)
 
 ''' If the file is too long - read another xlsx file and concat/merge with the other file as well '''
-#dff2 = pd.read_excel(path + '\\Moapa_May2022_2.xlsx')
-#df = pd.concat([dff1,dff2])
 
 
 

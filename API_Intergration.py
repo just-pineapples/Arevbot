@@ -6,7 +6,7 @@ import itertools, os, sys
 sys.path.append(os.getcwd())
 
 from PF_API_Shared import get_all_plants, get_plant_devices, Dispatch,TimeInterval, get_plants_metadata
-from config import SUBSCRIPTION_KEY, CUSTOMER_ID
+from src.config import SUBSCRIPTION_KEY, CUSTOMER_ID 
 
 
 t_start = t.time()
