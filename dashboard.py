@@ -18,7 +18,7 @@ sys.path.append(path)
 image = Image.open(fp=path)
 st.sidebar.image(image)
 
-options = st.sidebar.selectbox("What values are we looking for today?", {"Plants Metadata/Actual Vs Expected", 'Inverter Outage', 'DC Outages', 'Monthly Reporting'})
+options = st.sidebar.selectbox("What values are we looking for today?", {"Plants Metadata/Actual Vs Expected", 'Inverter Outage', 'DC Outages'})
 
 
 @st.cache
@@ -137,16 +137,7 @@ if options == "DC Outages":
     
     
         cbx_outages = dc_outages(plants, start_date, end_date)
-        # sum_down_strings = sum(cbx_outages['Estimated_Downstrings'].values)
-        # sum_string_count = sum(cbx_outages['String_count'].values)
-        # ratio_performance = (sum_down_strings/sum_string_count)*100
-        
-        # st.info(f"The ratio of DC underperformance: {ratio_performance.round(2)}%")
-        
-                
-        # string_count = cbx_outages['String_count'].values
-        # down_str = cbx_outages['Estimated_Downstrings'].values
-        
+
         st.dataframe(cbx_outages)
         csv = convert_df(cbx_outages)
         
@@ -159,5 +150,5 @@ if options == "DC Outages":
     else:
         st.info("Please select what dates you would like to use.")
         
-if options == "Monthly Reporting":
-    pass
+# if options == "Monthly Reporting":
+#     pass
