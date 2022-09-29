@@ -5,3 +5,4 @@ scipy
 pvlib
 streamlit
 plotly
+arrow

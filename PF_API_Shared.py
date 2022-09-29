@@ -7,7 +7,6 @@ Created on Tue Jul 19 10:32:54 2022
 
 import pandas as pd
 import numpy as np
-import os
 import requests
 import datetime as dt
 
