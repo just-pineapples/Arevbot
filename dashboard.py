@@ -13,7 +13,7 @@ from src.config import get_project_root
 st.set_page_config(layout="wide")
 
 
-path = ".\\Images\\Arevon_home.png"
+path = "Images\\Arevon_home.png"
 sys.path.append(path)
 
 image = Image.open(fp=path)
