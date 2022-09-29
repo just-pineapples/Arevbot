@@ -1,0 +1,3 @@
+roject Name,Start_Date,End_Date,Equipment_Name,Loss_Category,Energy_loss_MWh,Revenue Loss
+Ayrshire,2022-07-02 18:20:00,2022-07-03 09:55:00,02.001.BLK01.PAD08.INV01 ,Inverter Outage,2.238191887122262,161.6
+Ayrshire,2022-07-02 18:20:00,2022-07-03 09:30:00,02.001.BLK01.PAD09.INV01 ,Inverter Outage,1.6387862656289107,118.32
