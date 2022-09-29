@@ -4,3 +4,4 @@ watchdog
 scipy
 pvlib
 streamlit
+plotly
