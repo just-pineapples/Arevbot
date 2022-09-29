@@ -6,7 +6,7 @@ import itertools, os, sys
 sys.path.append(os.getcwd())
 
 from PF_API_Shared import get_all_plants, get_plant_devices, Dispatch,TimeInterval, get_plants_metadata
-from src.config import SUBSCRIPTION_KEY, CUSTOMER_ID 
+from src.config import SUBSCRIPTION_KEY, CUSTOMER_ID, timezone_convert 
 
 
 t_start = t.time()
@@ -21,6 +21,11 @@ def plants_meta(plant:str):
     meta = get_plants_metadata(SUBSCRIPTION_KEY, CUSTOMER_ID, plant_id)
 
     return meta
+
+def plant_tz(plant):
+    df = plants_meta(plant)
+    tz_converter = timezone_convert(df)
+    return tz_converter
 
 def ppa_rates(plant):    
     ppa_rates = pd.read_excel("Bala Export - 7.18.2022.xlsx")
@@ -180,7 +185,8 @@ def cbx_tags(plant:str, start, end):
     data = data.set_index([data.index])
     data.index = pd.to_datetime(data.index)
     data = data[~data.index.duplicated(keep='first')]
-    data.index = data.index.tz_convert("EST")
+    _tz = plant_tz(plant)
+    data.index = data.index.tz_convert(_tz)
     
     return data
 
@@ -209,7 +215,8 @@ def poa_tags(plant:str, start, end):
     data = data.set_index([data.index])
     data.index = pd.to_datetime(data.index)
     data = data[~data.index.duplicated(keep='first')]
-    data.index = data.index.tz_convert("EST")
+    _tz = plant_tz(plant)
+    data.index = data.index.tz_convert(_tz)
     
     return data
 
@@ -274,7 +281,8 @@ def inv_outages(plant:str, start, end):
     df = df.set_index([df.index])
     df.index = pd.to_datetime(df.index)
     df = df[~df.index.duplicated(keep='first')]
-    df.index = df.index.tz_convert("MST")
+    _tz = plant_tz(plant)
+    df.index = df.index.tz_convert(_tz)
     
     ''' Loading inv power and poa into dataframe '''
 
@@ -412,6 +420,7 @@ def expected_vs_actual(plant,start,end):
     df = df.set_index([df.index])
     df.index = pd.to_datetime(df.index)
     df = df[~df.index.duplicated(keep='first')]
+   
     df = df[:-1]
     df.loc[:,'POA'] = df.filter(regex = 'IRRADIANCE_POA').median(axis = 1)
     df.loc[:,'WS'] = df.filter(regex = 'WIND_SPEED').median(axis = 1)
