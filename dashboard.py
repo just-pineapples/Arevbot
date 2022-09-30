@@ -131,12 +131,13 @@ if options == "DC Outages":
     plants = st.sidebar.selectbox("Plants", all_plants())
     start_date = st.sidebar.date_input("Start Date", value=dt(2022,7,1))
     end_date = st.sidebar.date_input('End Date', value=dt(2022,7,2))
+    curtailment_limit = st.sidebar.number_input(label="Clipping Limit", value=int())
     
     start_button = st.sidebar.button("Submit")
     if start_button:
     
     
-        cbx_outages = dc_outages(plants, start_date, end_date)
+        cbx_outages = dc_outages(plants, start_date, end_date, curtailment_limit)
         cbx_index = list(cbx_outages.index)
         d_strings = list(cbx_outages.columns)
         

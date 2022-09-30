@@ -160,6 +160,7 @@ def inv_tags(plant:str, start, end):
 
 def cbx_tags(plant:str, start, end):
     dev_tags = [("Combiner", ["DC_CURRENT"]),
+                ("Inverter", ["DC_CURRENT"]),
             ("Sensor Pyranometer POA", ["IRRADIANCE_POA"]),
                 ("Meter",["AC_POWER"])]
   
@@ -220,20 +221,15 @@ def poa_tags(plant:str, start, end):
     
     return data
 
-def dc_outages(plant:str, start, end):
+def dc_outages(plant:str, start, end, curtailment_limit:int):
     """For Filtered data, the data is filtered by the following parameters
         a. POA > 100
         b. (Meter Power > 1.5 MW) & (Meter Power < 25 MW)
         c. Hour > 12 (For shading purposes)
         d. All CBX's < 0 = 0
-    """
-    plants = get_all_plants(SUBSCRIPTION_KEY, CUSTOMER_ID)  
-    plant_id = plants["id"][plants["name"] == plant].values[0]
-    meta = get_plants_metadata(SUBSCRIPTION_KEY, CUSTOMER_ID, plant_id)
-    
+    """ 
     data = cbx_tags(plant, start, end)
 
-    curtailment_limit = meta.iat[5,0]
     
     data.loc[:, "Meter_Power"] = data.filter(regex="MTR").median(axis=1)
     data.loc[:, "POA"] = data.filter(regex="MET").median(axis=1)
@@ -251,7 +247,6 @@ def dc_outages(plant:str, start, end):
     dc_rating = [i for i in dc_issues['DC Rating Power kW'].values]
 
     relative_dc = []
-    dc_expected = []
 
     max_dc = max(dc_rating)
 
@@ -266,6 +261,7 @@ def dc_outages(plant:str, start, end):
     cmb_relative.loc[:,'norm'] = cmb_relative.apply(pd.Series.nlargest, axis = 1, n = 5).median(axis = 1)
     t = cmb_relative.div(cmb_relative['norm'], axis = 0).clip(lower = 0, upper = 1)
     t = t.iloc[:,:-1]
+    t = t.fillna(0)
 
     down_strings = (string_count*(1-t)).round() 
 
