@@ -137,8 +137,11 @@ if options == "DC Outages":
     
     
         cbx_outages = dc_outages(plants, start_date, end_date)
+        fig = px.imshow(cbx_outages, labels=dict(x="Downstrings", y="Dates"), x=cbx_outages.columns, y=cbx_outages.index.values)
+        st.plotly_chart(fig, use_container_width= True)
 
         st.dataframe(cbx_outages)
+        
         csv = convert_df(cbx_outages)
         
         st.download_button(
