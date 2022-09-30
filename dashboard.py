@@ -137,7 +137,12 @@ if options == "DC Outages":
     
     
         cbx_outages = dc_outages(plants, start_date, end_date)
-        fig = px.imshow(cbx_outages, labels=dict(x="Downstrings", y="Dates"), x=cbx_outages.columns, y=cbx_outages.index.values)
+        cbx_index = list(cbx_outages.index)
+        d_strings = list(cbx_outages.columns)
+        
+        fig = px.imshow(cbx_outages, labels=dict(x="Downstrings", y="Dates", color="String Count"), x=d_strings, y=cbx_index, height=900, width=1500, text_auto=True, aspect="auto")
+        fig.update_xaxes(side="top")
+        fig.update_layout(yaxis_nticks=len(cbx_index))
         st.plotly_chart(fig, use_container_width= True)
 
         st.dataframe(cbx_outages)
