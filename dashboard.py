@@ -5,7 +5,6 @@ import plotly.express as px
 
 sys.path.append(os.getcwd())
 
-from st_aggrid import AgGrid
 from PIL import Image
 from datetime import datetime as dt
 from API_Intergration import expected_modeling_tags, inv_outages, plants_meta, all_plants, dc_outages, plants_coeffs, poa_tags
