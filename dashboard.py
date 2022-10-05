@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
-import os, sys
+import os, sys, re
 import plotly.express as px
 
 sys.path.append(os.getcwd())
 
+from st_aggrid import AgGrid
 from PIL import Image
 from datetime import datetime as dt
 from API_Intergration import expected_modeling_tags, inv_outages, plants_meta, all_plants, dc_outages, plants_coeffs, poa_tags
@@ -18,22 +19,32 @@ sys.path.append(path)
 image = Image.open(fp=path)
 st.sidebar.image(image)
 
-options = st.sidebar.selectbox("What values are we looking for today?", {"Plants Metadata/Actual Vs Expected", 'Inverter Outage', 'DC Outages'})
+options = st.sidebar.selectbox("What values are we looking for today?", {"Plants Metadata/Actual Vs Expected", 'Inverter Outage', 'DC Outages', 'Actual POA'})
 
 
 @st.cache
 def convert_df(df):
     return df.to_csv().encode('utf-8')
 
+@st.cache
+def get_poa_tags(df):
+    poa = df.filter(regex="MET")
+    return poa
+
+
 if options == "Inverter Outage":
     
     st.header('Inverter Outages - Lost Revenue')
-    plants = st.sidebar.selectbox("Plants", all_plants())
     
-    start_date = st.sidebar.date_input("Start Date", value=dt(2022,7,1))
-    end_date = st.sidebar.date_input('End Date', value=dt(2022,8,1))
+    with st.sidebar:
+        
     
-    start_button = st.sidebar.button("Submit")
+        plants = st.selectbox("Plants", all_plants())
+        
+        start_date = st.date_input("Start Date", value=dt(2022,7,1))
+        end_date = st.date_input('End Date', value=dt(2022,8,1))
+        
+        start_button = st.button("Submit")
     
     if start_button:
         plants_inv = inv_outages(plants, start_date,end_date)
@@ -57,22 +68,25 @@ if options == "Inverter Outage":
     
 
 if options == "Plants Metadata/Actual Vs Expected":
-    plants = st.sidebar.selectbox("Plants", all_plants())
-    meta = plants_meta(plants)
-    st.table(meta)
-    start_date = st.sidebar.date_input("Start Date", value=dt(2022,7,1))
-    end_date = st.sidebar.date_input('End Date', value=dt(2022,8,1))
+    
+    with st.sidebar:
+        plants = st.selectbox("Plants", all_plants())
+        meta = plants_meta(plants)
+        
+        start_date = st.date_input("Start Date", value=dt(2022,7,1))
+        end_date = st.date_input('End Date', value=dt(2022,8,1))
+    
+        df = expected_modeling_tags(plants, start_date, end_date)
     
     
-    
-    df = expected_modeling_tags(plants, start_date, end_date)
  
-    poa_names = list(df.filter(regex="IRRADIANCE_POA"))
-    poa_sensor = st.sidebar.multiselect("Which POA Sensor would you like to use?", poa_names)
-    start_button = st.sidebar.button("Submit")
+        poa_names = list(df.filter(regex="IRRADIANCE_POA"))
+        poa_sensor = st.multiselect("Which POA Sensor would you like to use?", poa_names)
+        start_button = st.button("Submit")
 
     if start_button:
         
+        st.table(meta)
         plant_coef = plants_coeffs(plants)
     
         poa = plant_coef["POA"].values
@@ -159,5 +173,45 @@ if options == "DC Outages":
     else:
         st.info("Please select what dates you would like to use.")
         
-# if options == "Monthly Reporting":
-#     pass
+if options == "Actual POA":
+# Monthly POA Report
+# Actual vs Expected
+
+    with st.sidebar:
+        plants = st.selectbox("Plants", all_plants())
+        start_date = st.date_input("Start Date", value=dt(2022,7,1))
+        end_date = st.date_input('End Date', value=dt(2022,7,2))
+        df = poa_tags(plants, start_date, end_date)
+        _poa = get_poa_tags(df)
+        poa_selection = st.multiselect("Which POA Sensor do you wish to take out?", default=list(_poa.columns), options=list(_poa.columns))
+        start_button = st.button("Submit")
+
+    if start_button:
+        st.subheader("You have selected: {}".format(",".join(poa_selection)))
+        
+        
+        with st.container():
+            
+            select = {poa: df[df.filter(regex="MET")==poa] for poa in poa_selection}
+            
+            fig = px.line(df, labels=dict(x="Timestamp", value="POA m/s^2"), y=select)
+            st.plotly_chart(fig, use_container_width=True)
+    
+        
+            res = df.index.to_series().diff().dt.total_seconds().fillna(0)[1]
+                
+            dfs = df.resample("1D").sum()/(1000*(60*60/res))
+            st.dataframe(dfs, width=1500)
+            
+            csv = convert_df(dfs)
+            
+            st.download_button(
+                label="Download Table as CSV",
+                data=csv,
+                file_name=f'{plants} DC_Underperformance.csv',
+                mime='text/csv'
+            )
+            df.loc[:, "Actual POA"] = df.filter(items=select).max(axis=1)
+            sum_total = df['Actual POA'].sum()/(1000*(60*60/res))
+            st.info(f"Total POA for the month: {sum_total.round(2)}")
+        

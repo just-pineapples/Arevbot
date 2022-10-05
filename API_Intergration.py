@@ -272,7 +272,7 @@ def dc_outages(plant:str, start, end, curtailment_limit:int):
 def inv_outages(plant:str, start, end):
     ''' Taking care of timestamps and indexing '''
     df = inv_tags(plant, start, end)
-    
+ 
     inv_names = []
     df = df.set_index([df.index])
     df.index = pd.to_datetime(df.index)
@@ -378,7 +378,7 @@ def inv_outages(plant:str, start, end):
     result = []
 
     date = [e for e in plants_revenue.Date]
-
+    
     for i in date:
         if df.Start_Date.where(cond=df['Start_Date'].dt.strftime("%Y-%m") == i).any():
             mask.append(i)
