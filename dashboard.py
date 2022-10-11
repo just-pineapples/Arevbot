@@ -5,9 +5,10 @@ import plotly.express as px
 
 sys.path.append(os.getcwd())
 
+from datetime import time
 from PIL import Image
 from datetime import datetime as dt
-from API_Intergration import expected_modeling_tags, inv_outages, plants_meta, all_plants, dc_outages, plants_coeffs, poa_tags
+from API_Intergration import expected_modeling_tags, inv_outages, inv_tags, plants_meta, all_plants, dc_outages, plants_coeffs, poa_tags
 
 st.set_page_config(layout="wide")
 
@@ -37,15 +38,31 @@ if options == "Inverter Outage":
     
     with st.sidebar:
         
-    
+
         plants = st.selectbox("Plants", all_plants())
         
         start_date = st.date_input("Start Date", value=dt(2022,7,1))
         end_date = st.date_input('End Date', value=dt(2022,8,1))
-        
         start_button = st.button("Submit")
     
     if start_button:
+        
+        inv = inv_tags(plants, start_date, end_date)
+        _inv = inv.filter(regex="INV")
+        
+        fig = px.line(_inv)
+        # start_range, end_range = st.slider("Time slider", min_value=time(0,0), max_value=time(0,23))
+        fig.update_xaxes(rangeslider_visible=True, 
+                         rangeselector=dict(buttons=list([
+                                        dict(count=1, label="1D", step="day", stepmode="backward"),
+                                        dict(count=5, label="5 Min", step="minute", stepmode="todate"),
+                                        dict(step='all')])))
+        fig.update_xaxes(rangeselector=dict(visible=True))
+        st.plotly_chart(fig, use_container_width=True)
+        
+        
+        
+        
         plants_inv = inv_outages(plants, start_date,end_date)
         if not plants_inv.empty:
             st.info(f"We have a total of {len(plants_inv['Energy_loss_MWh'])} Outages with Total of {plants_inv['Energy_loss_MWh'].sum().round(2)} MWh\n\n Total Revenue Lost {plants_inv['Revenue Loss'].sum().round(2)}$")
@@ -132,7 +149,7 @@ if options == "Plants Metadata/Actual Vs Expected":
             file_name=f'{plants} Actual vs Expected.csv',
             mime='text/csv'
         )
-        st.info(f"Expected Total: {daily_loss['Expected_Power_V1'].sum().round(2)}\n\n Actual Power: {daily_loss['Meter_Power'].sum().round(2)}")
+        st.info(f"Expected Energy Total: {daily_loss['Expected_Power_V1'].sum().round(2)}\n\n Actual Energy: {daily_loss['Meter_Power'].sum().round(2)}")
     
     else:
         st.info("Please select what dates you would like to use.")
@@ -173,8 +190,6 @@ if options == "DC Outages":
         st.info("Please select what dates you would like to use.")
         
 if options == "Actual POA":
-# Monthly POA Report
-# Actual vs Expected
 
     with st.sidebar:
         plants = st.selectbox("Plants", all_plants())
@@ -207,10 +222,10 @@ if options == "Actual POA":
             st.download_button(
                 label="Download Table as CSV",
                 data=csv,
-                file_name=f'{plants} DC_Underperformance.csv',
+                file_name=f'{plants} Actual POA.csv',
                 mime='text/csv'
             )
-            df.loc[:, "Actual POA"] = df.filter(items=select).max(axis=1)
+            df.loc[:, "Actual POA"] = df.filter(items=select).median(axis=1)
             sum_total = df['Actual POA'].sum()/(1000*(60*60/res))
             st.info(f"Total POA for the month: {sum_total.round(2)}")
         
