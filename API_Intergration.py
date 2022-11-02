@@ -1,10 +1,12 @@
 import pandas as pd
+import numpy as np
 import time as t
 import re
 import itertools, os, sys
 
-sys.path.append(os.getcwd())
 
+sys.path.append(os.getcwd())
+from datetime import datetime as dt
 from PF_API_Shared import get_all_plants, get_plant_devices, Dispatch,TimeInterval, get_plants_metadata
 from src.config import SUBSCRIPTION_KEY, CUSTOMER_ID, timezone_convert 
 
@@ -39,6 +41,8 @@ def plants_coeffs(plant):
     coeffs = pd.read_excel("Coronal Co-eff.xlsx")
     plant_coeffs = coeffs[coeffs["Plants"] == plant]
     return plant_coeffs
+
+
 
 def expected_modeling_tags(plant:str, start, end):
     
@@ -116,6 +120,46 @@ def power_tags(plant, start, end):
     
     
     return data
+
+def irradiance_tags(plant, start, end):
+    dev_tags = [("Sensor Pyranometer POA", ["IRRADIANCE_POA"]),
+            ("Sensor Pyranometer GHI", ["IRRADIANCE_GHI"])]
+  
+    rq_tags = []
+
+    plants = get_all_plants(SUBSCRIPTION_KEY, CUSTOMER_ID)  
+    plant_id = plants["id"][plants["name"] == plant].values[0]
+    dispatch = Dispatch(SUBSCRIPTION_KEY, '2096')
+    devices = get_plant_devices(SUBSCRIPTION_KEY,CUSTOMER_ID,plant_id)
+
+    for dtype, tags in dev_tags:
+        dtype_devices = devices[devices['type']==dtype]
+        
+        df = dispatch.fetch_data(dtype_devices['id'], 
+                                    tags, 
+                                    query_range=TimeInterval(starttime=start,endtime=end))
+        rq_tags.append(df)
+
+    inv_data = pd.concat(rq_tags, axis=1)
+    data = inv_data.copy(deep=True)
+    ident = [id for site, type, id, name in data.columns]
+    names = [name for site, type, id, name in data.columns]
+
+    list_compile = lambda a,b: a + '-' + b
+
+    mapper = (list(map(list_compile, ident,names)))
+    data.columns = mapper
+    
+
+    data = data.set_index([data.index])
+    data.index = pd.to_datetime(data.index)
+    data = data[~data.index.duplicated(keep='first')]
+    _tz = plant_tz(plant)
+    data.index = data.index.tz_convert(_tz)
+    
+    
+    return data
+
 
 def inv_tags(plant:str, start, end):
     dev_tags = [("Inverter", ["AC_POWER"]),
@@ -221,7 +265,7 @@ def poa_tags(plant:str, start, end):
     
     return data
 
-def dc_outages(plant:str, start, end, curtailment_limit:int):
+def dc_outages(plant:str, start, end, ac_limit:int):
     """For Filtered data, the data is filtered by the following parameters
         a. POA > 100
         b. (Meter Power > 1.5 MW) & (Meter Power < 25 MW)
@@ -233,11 +277,17 @@ def dc_outages(plant:str, start, end, curtailment_limit:int):
     
     data.loc[:, "Meter_Power"] = data.filter(regex="MTR").median(axis=1)
     data.loc[:, "POA"] = data.filter(regex="MET").median(axis=1)
+    res = new_df.index.to_series().diff().dt.total_seconds().fillna(0)[1]
 
-    new_df = data.between_time("7:00", "17:00")
-    new_df = data[(data.loc[:,"POA"] > 100)&(data.loc[:,"Meter_Power"]<curtailment_limit*0.99)]
-    new_df[new_df<=0.00] = 0
-    day_df = new_df.resample("1D").sum()
+    roll_w = int(30/(res/60))
+    
+    data.loc[:, "POA_DIFF"] = (data['POA'].diff().rolling(roll_w).std())
+    new_df = data[(data.loc[:,"POA"] > 100)&(data.loc[:,"POA_DIFF"] < 30)&(data.loc[:,"Meter_Power"]<ac_limit*0.9)&(data.loc["Meter_Power"]>ac_limit*0.02)]
+    final_df = new_df.between_time("10:00", "16:00")
+    
+    day_df = final_df.resample("1D").sum()
+    day_df[day_df == 0] = np.NaN
+    day_df = day_df.dropna(how='all')
     
 
     dc_meta = pd.read_excel("Project_Metadata_tables.xlsx", sheet_name="Combiner_table").filter(items= ['plant_name', 'string_count','DC Rating Power kW', 'Module IMP'], axis=1)

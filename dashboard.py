@@ -19,17 +19,41 @@ sys.path.append(path)
 image = Image.open(fp=path)
 st.sidebar.image(image)
 
-options = st.sidebar.selectbox("What values are we looking for today?", {"Plants Metadata/Actual Vs Expected", 'Inverter Outage', 'DC Outages', 'Actual POA'})
-
-
 @st.cache
 def convert_df(df):
     return df.to_csv().encode('utf-8')
 
 @st.cache
-def get_poa_tags(df):
-    poa = df.filter(regex="MET")
-    return poa
+def get_poa_tags(plant, start, end):
+    df = poa_tags(plant, start, end)
+    # df_1 = df.filter("MET")
+    return df
+
+@st.cache
+def get_expected_tags(plant, start, end):
+    df = expected_modeling_tags(plant, start, end)
+    return df
+
+@st.cache
+def get_meta(plant):
+    df = plants_meta(plant)
+    return df
+
+@st.cache
+def get_inv_tags(plant,start,end):
+    df = inv_tags(plant, start,end)
+    return df
+
+@st.cache
+def dc_loss(plant, start, end, ac_limit):
+    df = dc_outages(plant, start, end, ac_limit)
+    return df
+
+options = st.sidebar.selectbox("What values are we looking for today?", {"Plants Metadata/Actual Vs Expected", 'Inverter Outage', 'DC Outages', 'Actual POA'})
+
+metadata = pd.read_excel("Project_Metadata_tables.xlsx", sheet_name='Plants')
+_plants = [p[1] for p in metadata.values]
+
 
 
 if options == "Inverter Outage":
@@ -39,19 +63,18 @@ if options == "Inverter Outage":
     with st.sidebar:
         
 
-        plants = st.selectbox("Plants", all_plants())
+        plants = st.selectbox("Plants", _plants)
         
         start_date = st.date_input("Start Date", value=dt(2022,7,1))
-        end_date = st.date_input('End Date', value=dt(2022,8,1))
+        end_date = st.date_input('End Date', value=dt.now())
         start_button = st.button("Submit")
     
     if start_button:
         
-        inv = inv_tags(plants, start_date, end_date)
+        inv = get_inv_tags(plants, start_date, end_date)
         _inv = inv.filter(regex="INV")
         
         fig = px.line(_inv)
-        # start_range, end_range = st.slider("Time slider", min_value=time(0,0), max_value=time(0,23))
         fig.update_xaxes(rangeslider_visible=True, 
                          rangeselector=dict(buttons=list([
                                         dict(count=1, label="1D", step="day", stepmode="backward"),
@@ -59,9 +82,6 @@ if options == "Inverter Outage":
                                         dict(step='all')])))
         fig.update_xaxes(rangeselector=dict(visible=True))
         st.plotly_chart(fig, use_container_width=True)
-        
-        
-        
         
         plants_inv = inv_outages(plants, start_date,end_date)
         if not plants_inv.empty:
@@ -80,24 +100,23 @@ if options == "Inverter Outage":
     else:
         st.info("Please select what dates you would like to use.") 
     
-    
-    
 
-if options == "Plants Metadata/Actual Vs Expected":
+elif options == "Plants Metadata/Actual Vs Expected":
     
     with st.sidebar:
-        plants = st.selectbox("Plants", all_plants())
-        meta = plants_meta(plants)
+        plants = st.selectbox("Plants", _plants)
+        meta = get_meta(plants)
         
         start_date = st.date_input("Start Date", value=dt(2022,7,1))
-        end_date = st.date_input('End Date', value=dt(2022,8,1))
-    
-        df = expected_modeling_tags(plants, start_date, end_date)
-    
-    
- 
+        end_date = st.date_input('End Date', value=dt.now())
+        if not start_date and end_date:
+            st.warning("Please select the date you'd like to use")
+            st.stop()
+        # df = expected_modeling_tags(plants, start_date, end_date)
+        df = get_expected_tags(plants, start_date, end_date)
         poa_names = list(df.filter(regex="IRRADIANCE_POA"))
         poa_sensor = st.multiselect("Which POA Sensor would you like to use?", poa_names)
+        st.success("Please press submit to run code")
         start_button = st.button("Submit")
 
     if start_button:
@@ -122,11 +141,12 @@ if options == "Plants Metadata/Actual Vs Expected":
         df.loc[:, "POA"] = df.filter(items=poa_sensor,axis=1)
         df.loc[:,'WS'] = df.filter(regex = 'WIND_SPEED').median(axis = 1)
         df.loc[:,'T_AMB'] = df.filter(regex = 'T_AMB').median(axis = 1)
-        df.loc[:,'Meter_Power'] = (df.filter(regex = 'AC_POWER').median(axis = 1)).clip(0)
+        # df.loc[:,'Meter_Power'] = (df.filter(regex = 'AC_POWER').median(axis = 1)).clip(0)
+        df.loc[:,'Meter_Power'] = (df.filter(regex = 'MTR01')).clip(0)
     
-        df.loc[:,'Expected_Power_V1'] = (derate_factor*ac_loss*df["POA"]*(poa + (poa2*df["POA"]) + (df['T_AMB']*poa_tamb) + (df['WS']*poa_ws))).clip(0,int(clipping_setpoint))
+        df.loc[:,'Expected_Energy'] = (derate_factor*ac_loss*df["POA"]*(poa + (poa2*df["POA"]) + (df['T_AMB']*poa_tamb) + (df['WS']*poa_ws))).clip(0,int(clipping_setpoint))
         
-        expected_model = df[['Meter_Power','Expected_Power_V1']]
+        expected_model = df[['Meter_Power','Expected_Energy']]
             
         fig = px.line(expected_model, title="Actual Vs Expected kW")
         st.plotly_chart(fig, use_container_width=True)
@@ -134,9 +154,11 @@ if options == "Plants Metadata/Actual Vs Expected":
         
         res = df.index.to_series().diff().dt.total_seconds().fillna(0)[1]
         
-        _expected_model = df[['Meter_Power','Expected_Power_V1',"POA"]]
+        _expected_model = df[['Meter_Power','Expected_Energy',"POA"]]
         daily_loss = _expected_model.resample('1D').sum()/(1000*(60*60/res))
-        daily_loss.loc[:,"Daily_Loss"] = daily_loss["Meter_Power"]/daily_loss["Expected_Power_V1"] 
+        daily_loss.loc[:,"Ratio"] = daily_loss["Meter_Power"]/daily_loss["Expected_Energy"] 
+        daily_loss.loc[:,"Daily_Loss"] = daily_loss["Expected_Energy"]-daily_loss["Meter_Power"] 
+        
         
         
         st.table(daily_loss)
@@ -146,28 +168,27 @@ if options == "Plants Metadata/Actual Vs Expected":
         st.download_button(
             label="Download Table as CSV",
             data=csv,
-            file_name=f'{plants} Actual vs Expected.csv',
+            file_name=f'{plants} Actual vs Expected: {start_date} - {end_date}.csv',
             mime='text/csv'
         )
-        st.info(f"Expected Energy Total: {daily_loss['Expected_Power_V1'].sum().round(2)}\n\n Actual Energy: {daily_loss['Meter_Power'].sum().round(2)}")
+        st.info(f"Expected Energy Total: {daily_loss['Expected_Energy'].sum().round(2)}\n\n Actual Energy: {daily_loss['Meter_Power'].sum().round(2)}\n\n Our Losses: {daily_loss['Daily_Loss'].sum().round(2)}")
     
-    else:
-        st.info("Please select what dates you would like to use.")
 
-if options == "DC Outages":
+elif options == "DC Outages":
     
     
     
-    plants = st.sidebar.selectbox("Plants", all_plants())
-    start_date = st.sidebar.date_input("Start Date", value=dt(2022,7,1))
-    end_date = st.sidebar.date_input('End Date', value=dt(2022,7,2))
-    curtailment_limit = st.sidebar.number_input(label="Clipping Limit (kW)", value=int())
+    plants = st.sidebar.selectbox("Plants", _plants)
+    start_date = st.sidebar.date_input("Start Date", value=dt(2022,10,1))
+    end_date = st.sidebar.date_input('End Date', value=dt.now())
+    ac_limit = st.sidebar.number_input(label="Clipping Limit (kW)", value=int())
     
     start_button = st.sidebar.button("Submit")
     if start_button:
     
+        cbx_outages = dc_loss(plants, start_date, end_date, ac_limit)
     
-        cbx_outages = dc_outages(plants, start_date, end_date, curtailment_limit)
+        # cbx_outages = dc_outages(plants, start_date, end_date, ac_limit)
         cbx_index = list(cbx_outages.index)
         d_strings = list(cbx_outages.columns)
         
@@ -183,38 +204,37 @@ if options == "DC Outages":
         st.download_button(
             label="Download Table as CSV",
             data=csv,
-            file_name=f'{plants} DC_Underperformance.csv',
+            file_name=f'{plants} DC_Underperformance: {start_date} - {end_date}.csv',
             mime='text/csv'
         )
     else:
         st.info("Please select what dates you would like to use.")
         
-if options == "Actual POA":
+elif options == "Actual POA":
 
     with st.sidebar:
-        plants = st.selectbox("Plants", all_plants())
-        start_date = st.date_input("Start Date", value=dt(2022,7,1))
-        end_date = st.date_input('End Date', value=dt(2022,7,2))
-        df = poa_tags(plants, start_date, end_date)
-        _poa = get_poa_tags(df)
+        plants = st.selectbox("Plants", _plants)
+        start_date = st.date_input("Start Date", value=dt(2022,10,1))
+        end_date = st.date_input('End Date', value=dt.now())
+        _poa = get_poa_tags(plants, start_date,end_date)
         poa_selection = st.multiselect("Which POA Sensor do you wish to take out?", default=list(_poa.columns), options=list(_poa.columns))
         start_button = st.button("Submit")
-
+        
     if start_button:
         st.subheader("You have selected: {}".format(",".join(poa_selection)))
         
         
         with st.container():
             
-            select = {poa: df[df.filter(regex="MET")==poa] for poa in poa_selection}
+            select = {poa: _poa[_poa.filter(regex="MET")==poa] for poa in poa_selection}
             
-            fig = px.line(df, labels=dict(x="Timestamp", value="POA m/s^2"), y=select)
+            fig = px.line(_poa, labels=dict(x="Timestamp", value="POA m/s^2"), y=select)
             st.plotly_chart(fig, use_container_width=True)
     
         
-            res = df.index.to_series().diff().dt.total_seconds().fillna(0)[1]
+            res = _poa.index.to_series().diff().dt.total_seconds().fillna(0)[1]
                 
-            dfs = df.resample("1D").sum()/(1000*(60*60/res))
+            dfs = _poa.resample("1D").sum()/(1000*(60*60/res))
             st.dataframe(dfs, width=1500)
             
             csv = convert_df(dfs)
@@ -225,7 +245,7 @@ if options == "Actual POA":
                 file_name=f'{plants} Actual POA.csv',
                 mime='text/csv'
             )
-            df.loc[:, "Actual POA"] = df.filter(items=select).median(axis=1)
-            sum_total = df['Actual POA'].sum()/(1000*(60*60/res))
+            _poa.loc[:, "Actual POA"] = _poa.filter(items=select).median(axis=1)
+            sum_total = _poa['Actual POA'].sum()/(1000*(60*60/res))
             st.info(f"Total POA for the month: {sum_total.round(2)}")
         
